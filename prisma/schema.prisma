@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Goal (Цель)
+model Goal {
+  id              String     @id @default(cuid())
+  title           String
+  description     String?
+  category        String?
+  timeHorizon     String     @default("year") // year, quarter, month
+  startDate       DateTime   @default(now())
+  endDate         DateTime?
+  successMetric   String?    // число/валюта/шт/время/булево
+  targetValue     Float?
+  currentValue    Float?     @default(0)
+  status          String     @default("active") // active, paused, done, archived
+  priority        Int        @default(3) // 1-5
+  confidence      Int?       // опционально
+
+  planItems       PlanItem[]
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+// PlanItem (Элемент плана)
+model PlanItem {
+  id              String     @id @default(cuid())
+  type            String     // milestone, task, habit, checkpoint
+  title           String
+  description     String?
+
+  goalId          String
+  goal            Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  parentId        String?
+  parent          PlanItem?  @relation("PlanItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children        PlanItem[] @relation("PlanItemChildren")
+
+  period          String?    // month, week, day
+  scheduleType    String     @default("one-off") // one-off, recurring
+
+  // For one-off tasks
+  dueDate         DateTime?
+
+  // For recurring tasks (RRULE-like)
+  recurrenceRule  String?    // JSON: {freq: "daily|weekly|monthly", interval: 1, byweekday: [0,1,2], etc}
+
+  effort          Int?       // minutes or points
+  status          String     @default("todo") // todo, done, skipped, failed
+  completionDate  DateTime?
+  notes           String?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+// Review (Обзор)
+model Review {
+  id              String     @id @default(cuid())
+  type            String     // weekly, monthly
+  reviewDate      DateTime
+
+  // Шаблон вопросов и фиксация решений (JSON)
+  questionsData   String?    // JSON: {completed: [], overdue: [], focus: "..."}
+  notes           String?
+
+  // Результаты
+  tasksRescheduled Int?
+  tasksCompleted   Int?
+  tasksSkipped     Int?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+// Template (Шаблон)
+model Template {
+  id              String     @id @default(cuid())
+  name            String
+  description     String?
+  category        String?
+
+  // Шаблон цели и декомпозиции (JSON)
+  templateData    String     // JSON: {goal: {...}, planItems: [{...}, {...}]}
+
+  isPublic        Boolean    @default(false)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
